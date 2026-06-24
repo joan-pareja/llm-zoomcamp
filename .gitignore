@@ -1,9 +1,13 @@
 .venv
 .env
 faq.db*
-*.db
+*.db*
 *.db.shm
 *.db-wal
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+models/
+llm_zoomcamp.egg-info/
+.agents/
+.codex/
