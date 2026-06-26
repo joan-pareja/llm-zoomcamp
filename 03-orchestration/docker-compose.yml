@@ -12,9 +12,9 @@ services:
     volumes:
       - kestra_postgres_data:/var/lib/postgresql
     environment:
-      POSTGRES_DB: kestra
-      POSTGRES_USER: kestra
-      POSTGRES_PASSWORD: k3str4
+      POSTGRES_DB: ${KESTRA_POSTGRES_DB}
+      POSTGRES_USER: ${KESTRA_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${KESTRA_POSTGRES_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
       interval: 30s
@@ -37,15 +37,15 @@ services:
       KESTRA_CONFIGURATION: |
         datasources:
           postgres:
-            url: jdbc:postgresql://kestra_postgres:5432/kestra
+            url: jdbc:postgresql://kestra_postgres:5432/${KESTRA_POSTGRES_DB}
             driverClassName: org.postgresql.Driver
-            username: kestra
-            password: k3str4
+            username: ${KESTRA_POSTGRES_USER}
+            password: ${KESTRA_POSTGRES_PASSWORD}
         kestra:
           server:
             basicAuth:
-              username: "admin@kestra.io"
-              password: Admin1234!
+              username: "${KESTRA_USERNAME}"
+              password: "${KESTRA_PASSWORD}"
           repository:
             type: postgres
           storage:
@@ -57,12 +57,18 @@ services:
           tasks:
             tmpDir:
               path: /tmp/kestra-wd/tmp
-          url: http://localhost:8080/
+          url: ${KESTRA_URL}
           ai:
             type: gemini
             gemini:
-              model-name: gemini-2.5-flash
+              model-name: ${GEMINI_MODEL_NAME}
               api-key: ${GEMINI_API_KEY}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
     ports:
       - "8080:8080"
       - "8081:8081"

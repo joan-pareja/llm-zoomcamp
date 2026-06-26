@@ -1,6 +1,7 @@
 """Agentic RAG utilities shared across course modules."""
 
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, TypeAlias
@@ -21,6 +22,8 @@ ToolDefinition: TypeAlias = dict[str, Any]
 Message: TypeAlias = dict[str, Any]
 MessageHistory: TypeAlias = list[Any]
 EmbeddingInput: TypeAlias = str | list[str]
+
+DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-5.4-mini")
 
 
 class Encoder(Protocol):
@@ -219,7 +222,7 @@ class AgenticRAG:
         llm_client: Any,
         search_tool: SearchTool,
         instructions: str,
-        model: str = "gpt-5.4-mini",
+        model: str = DEFAULT_OPENAI_MODEL,
         max_turns: int = 10,
         usage_cost_config: UsageCostConfig | None = None,
     ) -> None:

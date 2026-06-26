@@ -1,3 +1,9 @@
+import os
+
+
+DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-5.4-mini")
+
+
 INSTRUCTIONS = """
 Your task is to answer questions from the course participants
 based on the provided context.
@@ -23,7 +29,7 @@ class RAGBase:
         instructions=INSTRUCTIONS,
         prompt_template=PROMPT_TEMPLATE,
         course="llm-zoomcamp",
-        model="gpt-5.4-mini"
+        model=DEFAULT_OPENAI_MODEL
     ):
         self.index = index
         self.llm_client = llm_client
@@ -75,7 +81,9 @@ class RAGBase:
         return round(cost, 6)
 
 
-    def llm(self, instructions, user_prompt, model="gpt-5.4-mini"):
+    def llm(self, instructions, user_prompt, model=None):
+        model = model or self.model
+
         message_history = [
             {"role": "developer", "content": instructions},
             {"role": "user", "content": user_prompt}
