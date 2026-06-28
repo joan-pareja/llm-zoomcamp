@@ -2,35 +2,17 @@
 
 import json
 import os
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Protocol, TypeAlias
+from dataclasses import dataclass
+from typing import Any, TypeAlias
 
-import numpy as np
-from tqdm.auto import tqdm
-
-from .index_storage import (
-    build_minsearch_text_index,
-    build_minsearch_vector_index,
-    build_sqlite_text_index,
-    build_sqlite_vector_index,
-)
+from .search import SearchTool
 
 
-JSONDict: TypeAlias = dict[str, Any]
 ToolDefinition: TypeAlias = dict[str, Any]
 Message: TypeAlias = dict[str, Any]
 MessageHistory: TypeAlias = list[Any]
-EmbeddingInput: TypeAlias = str | list[str]
 
 DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-5.4-mini")
-
-
-class Encoder(Protocol):
-    """Minimal interface for embedding models used by semantic search."""
-
-    def encode(self, text: EmbeddingInput) -> Any:
-        ...
 
 
 SEARCH_TOOL_DEFINITION: ToolDefinition = {
@@ -50,22 +32,6 @@ SEARCH_TOOL_DEFINITION: ToolDefinition = {
     }
 }
 
-
-@dataclass
-class KeywordSearchConfig:
-    num_results: int = 5
-    boost_dict: dict[str, float] = field(default_factory=lambda: {
-        "question": 3.0,
-        "section": 0.5,
-    })
-
-
-@dataclass
-class SemanticSearchConfig:
-    num_results: int = 5
-    batch_size: int = 50
-
-
 @dataclass
 class UsageCostConfig:
     input_price_per_million: float = 0.75
@@ -76,142 +42,6 @@ class UsageCostConfig:
 class AgentRunStats:
     cost_in_dollars: float = 0.0
     tool_calls: int = 0
-
-
-class SearchTool:
-    def search(self, query: str) -> list[JSONDict]:
-        raise NotImplementedError
-
-
-class KeywordSearchTool(SearchTool):
-    """Keyword-search adapter for course document indexes."""
-
-    def __init__(
-        self,
-        index: Any,
-        course: str = "llm-zoomcamp",
-        config: KeywordSearchConfig | None = None,
-    ) -> None:
-        self.index = index
-        self.course = course
-        self.config = config or KeywordSearchConfig()
-
-    @classmethod
-    def from_documents(
-        cls,
-        documents: list[JSONDict],
-        text_fields: list[str],
-        keyword_fields: list[str],
-        course: str = "llm-zoomcamp",
-        config: KeywordSearchConfig | None = None,
-        db_path: str | Path | None = None,
-        recreate: bool = True,
-    ) -> "KeywordSearchTool":
-        if db_path is None:
-            index = build_minsearch_text_index(
-                documents=documents,
-                text_fields=text_fields,
-                keyword_fields=keyword_fields,
-            )
-        else:
-            index = build_sqlite_text_index(
-                documents=documents,
-                text_fields=text_fields,
-                keyword_fields=keyword_fields,
-                db_path=db_path,
-                recreate=recreate,
-            )
-
-        return cls(index=index, course=course, config=config)
-
-    def search(self, query: str) -> list[JSONDict]:
-        return self.index.search(
-            query,
-            num_results=self.config.num_results,
-            boost_dict=self.config.boost_dict,
-            filter_dict={"course": self.course},
-        )
-
-
-class SemanticSearchTool(SearchTool):
-    """Semantic-search adapter for course document indexes."""
-
-    def __init__(
-        self,
-        index: Any,
-        encoder: Encoder,
-        course: str = "llm-zoomcamp",
-        config: SemanticSearchConfig | None = None,
-    ) -> None:
-        self.index = index
-        self.encoder = encoder
-        self.course = course
-        self.config = config or SemanticSearchConfig()
-
-    @classmethod
-    def from_documents(
-        cls,
-        documents: list[JSONDict],
-        encoder: Encoder,
-        text_fields: list[str],
-        keyword_fields: list[str],
-        course: str = "llm-zoomcamp",
-        config: SemanticSearchConfig | None = None,
-        db_path: str | Path | None = None,
-        vector_mode: str = "ivf",
-        recreate: bool = True,
-    ) -> "SemanticSearchTool":
-        config = config or SemanticSearchConfig()
-        texts = [
-            " ".join(str(doc.get(field, "")) for field in text_fields).strip()
-            for doc in documents
-        ]
-        vectors = []
-
-        for i in tqdm(range(0, len(texts), config.batch_size)):
-            batch = texts[i:i + config.batch_size]
-
-            if hasattr(encoder, "encode_batch"):
-                batch_vectors = encoder.encode_batch(batch)
-            else:
-                batch_vectors = encoder.encode(batch)
-
-            vectors.extend(batch_vectors)
-
-        vectors = np.asarray(vectors)
-
-        if db_path is None:
-            index = build_minsearch_vector_index(
-                vectors=vectors,
-                documents=documents,
-                keyword_fields=keyword_fields,
-            )
-        else:
-            index = build_sqlite_vector_index(
-                vectors=vectors,
-                documents=documents,
-                keyword_fields=keyword_fields,
-                db_path=db_path,
-                mode=vector_mode,
-                recreate=recreate,
-            )
-
-        return cls(
-            index=index,
-            encoder=encoder,
-            course=course,
-            config=config,
-        )
-
-    def encode_query(self, query: str) -> Any:
-        return np.asarray(self.encoder.encode(query))
-
-    def search(self, query: str) -> list[JSONDict]:
-        return self.index.search(
-            self.encode_query(query),
-            num_results=self.config.num_results,
-            filter_dict={"course": self.course},
-        )
 
 
 class AgenticRAG:
