@@ -15,6 +15,7 @@ dependencies = [
     "numpy>=2.3.5",
     "onnxruntime>=1.27.0",
     "openai>=2.41.1",
+    "pandas>=3.0.3",
     "psycopg[binary]>=3.3.4",
     "pydash>=8.0.6",
     "python-dotenv>=1.2.2",
@@ -34,8 +35,25 @@ legacy-st = [
 [tool.setuptools.packages.find]
 include = ["lib*", "scripts*"]
 
+[tool.pyright]
+include = [
+    "04-evaluation/evaluation_utils.py",
+    "lib/agentic_rag.py",
+    "lib/index_storage.py",
+    "lib/llm.py",
+    "lib/search.py",
+    "lib/sources.py",
+    "lib/types.py",
+]
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "strict"
+
 [dependency-groups]
 dev = [
     "huggingface-hub>=1.20.1",
     "jupyter>=1.1.1",
+    "pandas-stubs>=3.0.3.260530",
+    "pyright>=1.1.411",
 ]

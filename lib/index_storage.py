@@ -1,30 +1,32 @@
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+
+from .types import EmbeddingVector, JSONDocument
 
 
 def build_minsearch_text_index(
-    documents: list[dict[str, Any]],
+    documents: Sequence[JSONDocument],
     text_fields: list[str],
     keyword_fields: list[str],
-) -> Any:
-    from minsearch import Index
+) -> object:
+    from minsearch import Index  # pyright: ignore[reportMissingTypeStubs]
 
     index = Index(
         text_fields=text_fields,
         keyword_fields=keyword_fields,
     )
-    index.fit(documents)
+    index.fit(documents)  # pyright: ignore[reportUnknownMemberType]
     return index
 
 
 def build_sqlite_text_index(
-    documents: list[dict[str, Any]],
+    documents: Sequence[JSONDocument],
     text_fields: list[str],
     keyword_fields: list[str],
     db_path: str | Path,
     recreate: bool = True,
-) -> Any:
-    from sqlitesearch import TextSearchIndex
+) -> object:
+    from sqlitesearch import TextSearchIndex  # pyright: ignore[reportMissingTypeStubs]
 
     index = TextSearchIndex(
         text_fields=text_fields,
@@ -35,31 +37,31 @@ def build_sqlite_text_index(
     if recreate:
         index.clear()
 
-    index.fit(documents)
+    index.fit(documents)  # pyright: ignore[reportArgumentType]
     return index
 
 
 def build_minsearch_vector_index(
-    vectors: Any,
-    documents: list[dict[str, Any]],
+    vectors: EmbeddingVector,
+    documents: Sequence[JSONDocument],
     keyword_fields: list[str],
-) -> Any:
-    from minsearch import VectorSearch
+) -> object:
+    from minsearch import VectorSearch  # pyright: ignore[reportMissingTypeStubs]
 
     index = VectorSearch(keyword_fields=keyword_fields)
-    index.fit(vectors, documents)
+    index.fit(vectors, documents)  # pyright: ignore[reportUnknownMemberType]
     return index
 
 
 def build_sqlite_vector_index(
-    vectors: Any,
-    documents: list[dict[str, Any]],
+    vectors: EmbeddingVector,
+    documents: Sequence[JSONDocument],
     keyword_fields: list[str],
     db_path: str | Path,
     mode: str = "ivf",
     recreate: bool = True,
-) -> Any:
-    from sqlitesearch import VectorSearchIndex
+) -> object:
+    from sqlitesearch import VectorSearchIndex  # pyright: ignore[reportMissingTypeStubs]
 
     index = VectorSearchIndex(
         mode=mode,
@@ -70,7 +72,7 @@ def build_sqlite_vector_index(
     if recreate:
         index.clear()
 
-    index.fit(vectors, documents)
+    index.fit(vectors, documents)  # pyright: ignore[reportArgumentType]
     return index
 
 
@@ -78,8 +80,8 @@ def load_sqlite_text_index(
     text_fields: list[str],
     keyword_fields: list[str],
     db_path: str | Path,
-) -> Any:
-    from sqlitesearch import TextSearchIndex
+) -> object:
+    from sqlitesearch import TextSearchIndex  # pyright: ignore[reportMissingTypeStubs]
 
     return TextSearchIndex(
         text_fields=text_fields,
@@ -92,8 +94,8 @@ def load_sqlite_vector_index(
     keyword_fields: list[str],
     db_path: str | Path,
     mode: str = "ivf",
-) -> Any:
-    from sqlitesearch import VectorSearchIndex
+) -> object:
+    from sqlitesearch import VectorSearchIndex  # pyright: ignore[reportMissingTypeStubs]
 
     return VectorSearchIndex(
         mode=mode,

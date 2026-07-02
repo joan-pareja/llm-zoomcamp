@@ -3,6 +3,7 @@ import onnxruntime as ort
 from pathlib import Path
 from typing import overload
 
+from lib.types import EmbeddingVector
 from tokenizers import Tokenizer
 
 
@@ -24,14 +25,18 @@ class Embedder:
         self.input_names = {inp.name for inp in self.session.get_inputs()}
 
     @overload
-    def encode(self, text: str, normalize: bool = True) -> np.ndarray:
+    def encode(self, text: str, normalize: bool = True) -> EmbeddingVector:
         ...
 
     @overload
-    def encode(self, text: list[str], normalize: bool = True) -> np.ndarray:
+    def encode(self, text: list[str], normalize: bool = True) -> EmbeddingVector:
         ...
 
-    def encode(self, text: str | list[str], normalize: bool = True) -> np.ndarray:
+    def encode(
+        self,
+        text: str | list[str],
+        normalize: bool = True,
+    ) -> EmbeddingVector:
         if isinstance(text, str):
             return self.encode_batch([text], normalize=normalize)[0]
 
@@ -41,7 +46,7 @@ class Embedder:
         self,
         texts: list[str],
         normalize: bool = True,
-    ) -> np.ndarray:
+    ) -> EmbeddingVector:
         self.tokenizer.enable_padding()
         encoded = self.tokenizer.encode_batch(texts)
         feed = {}
