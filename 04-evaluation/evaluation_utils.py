@@ -1,6 +1,7 @@
 from collections.abc import Callable, Sequence
 from concurrent.futures import Executor, Future
 from dataclasses import dataclass
+from time import sleep
 from typing import TypeVar
 
 from tqdm.auto import tqdm
@@ -37,6 +38,7 @@ def map_progress(
     pool: Executor,
     seq: Sequence[InputT],
     f: Callable[[InputT], OutputT],
+    submit_delay_seconds: float = 0.0,
 ) -> list[OutputT]:
     results: list[OutputT] = []
 
@@ -47,6 +49,9 @@ def map_progress(
             future = pool.submit(f, el)
             future.add_done_callback(lambda _future: progress.update())
             futures.append(future)
+
+            if submit_delay_seconds > 0:
+                sleep(submit_delay_seconds)
 
         for future in futures:
             result = future.result()

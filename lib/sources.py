@@ -30,7 +30,7 @@ class FAQDocument(TypedDict):
     answer: str
 
 
-def load_faq_data() -> list[FAQDocument]:
+def load_faq_documents() -> list[FAQDocument]:
     docs_url = "https://datatalks.club/faq/json/courses.json"
     response = requests.get(docs_url)
     response.raise_for_status()

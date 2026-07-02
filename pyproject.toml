@@ -54,5 +54,6 @@ typeCheckingMode = "strict"
 dev = [
     "huggingface-hub>=1.20.1",
     "jupyter>=1.1.1",
+    "pandas-stubs>=3.0.3.260530",
     "pyright>=1.1.411",
 ]

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import TypeVar
 
 from openai import OpenAI
-from openai.types.responses import ResponseInputParam, ResponseUsage
+from openai.types.responses import Response, ResponseInputParam, ResponseUsage, ToolParam
 
 
 DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-5.4-mini")
@@ -48,6 +48,26 @@ def calc_total_price(usages: Iterable[ResponseUsage | None]) -> float:
         total_cost = total_cost + cost.total_cost
 
     return total_cost
+
+
+def call_llm(
+    client: OpenAI,
+    messages: ResponseInputParam,
+    model: str = DEFAULT_OPENAI_MODEL,
+    tools: Iterable[ToolParam] | None = None,
+) -> Response:
+    if tools is None:
+        return client.responses.create(
+            model=model,
+            input=messages,
+        )
+
+    else:
+        return client.responses.create(
+            model=model,
+            input=messages,
+            tools=tools,
+        )
 
 
 def call_structured_llm(
