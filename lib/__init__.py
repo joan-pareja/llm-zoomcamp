@@ -19,22 +19,25 @@ from .llm import (
     call_structured_llm,
     call_structured_llm_with_retry,
 )
-from .sources import FAQDocument
+from .search import HybridSearchTool
+from .search import SearchTool
+from .search import reciprocal_rank_fusion
 from .sources import load_faq_documents
-from .types import JSONDict
-from .types import JSONDocument
-from .types import JSONValue
+from .types import Document
+from .types import FAQDocument
+from .types import FAQGroundTruthRecord
 
 
 __all__ = [
+    "Document",
     "FAQDocument",
-    "JSONDict",
-    "JSONDocument",
-    "JSONValue",
+    "FAQGroundTruthRecord",
     "SEARCH_TOOL_DEFINITION",
     "AgenticRAG",
     "AgentRunStats",
+    "HybridSearchTool",
     "RAGMode",
+    "SearchTool",
     "UsageCostConfig",
     "UsagePrice",
     "build_sqlite_text_index",
@@ -47,4 +50,5 @@ __all__ = [
     "load_faq_documents",
     "load_sqlite_text_index",
     "load_sqlite_vector_index",
+    "reciprocal_rank_fusion",
 ]

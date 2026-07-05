@@ -8,26 +8,11 @@ validate data at runtime; use Pydantic or explicit parsing if runtime validation
 becomes important.
 """
 
-from typing import TypedDict, cast
+from typing import cast
 
 import requests
 
-
-class CourseMetadata(TypedDict):
-    course: str
-    course_name: str
-    path: str
-    questions_count: int
-
-
-class FAQDocument(TypedDict):
-    """FAQ document returned by the DataTalks.Club source."""
-
-    id: str
-    course: str
-    section: str
-    question: str
-    answer: str
+from .types import CourseMetadata, FAQDocument
 
 
 def load_faq_documents() -> list[FAQDocument]:

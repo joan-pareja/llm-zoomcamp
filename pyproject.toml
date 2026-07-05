@@ -42,6 +42,7 @@ include = [
     "lib/index_storage.py",
     "lib/llm.py",
     "lib/search.py",
+    "lib/search_types.py",
     "lib/sources.py",
     "lib/types.py",
 ]

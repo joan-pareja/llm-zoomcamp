@@ -1,10 +1,9 @@
 """Search tool implementations shared across course modules."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Hashable, Iterable, Sequence
 from pathlib import Path
-from typing import Any, Protocol, TypeAlias, cast, overload
+from typing import cast
 
 import numpy as np
 from tqdm.auto import tqdm
@@ -15,82 +14,25 @@ from .index_storage import (
     build_sqlite_text_index,
     build_sqlite_vector_index,
 )
-from .types import EmbeddingVector, JSONDict, JSONDocument
+from .search_types import (
+    Encoder,
+    LexicalSearchConfig,
+    LexicalSearchIndex,
+    SemanticSearchConfig,
+    SemanticSearchIndex,
+)
+from .types import Document, EmbeddingVector
 
 
-EmbeddingInput: TypeAlias = str | list[str]
-IndexDocument: TypeAlias = dict[str, Any]
-
-
-class Encoder(Protocol):
-    """Embedding interface used to create semantic index and query vectors."""
-
-    @overload
-    def encode(self, text: str) -> EmbeddingVector:
-        ...
-
-    @overload
-    def encode(self, text: list[str]) -> EmbeddingVector:
-        ...
-
-    def encode(self, text: EmbeddingInput) -> EmbeddingVector:
-        ...
-
-
-class LexicalSearchIndex(ABC):
-    """Index interface required by lexical search tools."""
-
-    @abstractmethod
-    def search(
-        self,
-        query: str,
-        filter_dict: JSONDict | None = None,
-        boost_dict: dict[str, float] | None = None,
-        num_results: int = 10,
-    ) -> list[IndexDocument]:
-        ...
-
-
-class SemanticSearchIndex(ABC):
-    """Index interface required by semantic search tools."""
-
-    @abstractmethod
-    def search(
-        self,
-        query_vector: EmbeddingVector,
-        filter_dict: JSONDict | None = None,
-        num_results: int = 10,
-    ) -> list[IndexDocument]:
-        ...
-
-
-class SearchTool(ABC):
+class SearchTool[TDocument: Document](ABC):
     """Abstract search interface consumed by AgenticRAG."""
 
     @abstractmethod
-    def search(self, query: str) -> list[JSONDict]:
+    def search(self, query: str) -> list[TDocument]:
         ...
 
 
-@dataclass
-class LexicalSearchConfig:
-    """Runtime settings shared by lexical search tools."""
-
-    num_results: int = 5
-    filter_dict: JSONDict | None = None
-    boost_dict: dict[str, float] | None = None
-
-
-@dataclass
-class SemanticSearchConfig:
-    """Runtime settings shared by semantic search tools."""
-
-    num_results: int = 5
-    batch_size: int = 50
-    filter_dict: JSONDict | None = None
-
-
-class BaseLexicalSearchTool(SearchTool):
+class BaseLexicalSearchTool[TDocument: Document](SearchTool[TDocument]):
     """Base class for text-query indexes with the same search API."""
 
     def __init__(
@@ -101,7 +43,7 @@ class BaseLexicalSearchTool(SearchTool):
         self.index = index
         self.config = config or LexicalSearchConfig()
 
-    def search(self, query: str) -> list[JSONDict]:
+    def search(self, query: str) -> list[TDocument]:
         """Search by words, optional filters, and field boosts."""
         results = self.index.search(
             query,
@@ -109,60 +51,58 @@ class BaseLexicalSearchTool(SearchTool):
             boost_dict=self.config.boost_dict,
             filter_dict=self.config.filter_dict,
         )
-        return cast(list[JSONDict], results)
+        return cast(list[TDocument], results)
 
 
-class MinsearchLexicalSearchTool(BaseLexicalSearchTool):
+class MinsearchLexicalSearchTool[TDocument: Document](
+    BaseLexicalSearchTool[TDocument]
+):
     """Lexical search backed by an in-memory minsearch text index."""
 
     @classmethod
     def from_documents(
         cls,
-        documents: Sequence[JSONDocument],
+        documents: Sequence[TDocument],
         text_fields: list[str],
         keyword_fields: list[str],
         config: LexicalSearchConfig | None = None,
-    ) -> "MinsearchLexicalSearchTool":
+    ) -> "MinsearchLexicalSearchTool[TDocument]":
         """Build an in-memory lexical tool from raw documents."""
-        index = cast(
-            LexicalSearchIndex,
-            build_minsearch_text_index(
-                documents=documents,
-                text_fields=text_fields,
-                keyword_fields=keyword_fields,
-            ),
+        index = build_minsearch_text_index(
+            documents=documents,
+            text_fields=text_fields,
+            keyword_fields=keyword_fields,
         )
         return cls(index=index, config=config)
 
 
-class SQLiteLexicalSearchTool(BaseLexicalSearchTool):
+class SQLiteLexicalSearchTool[TDocument: Document](
+    BaseLexicalSearchTool[TDocument]
+):
     """Lexical search backed by a persisted SQLite text index."""
 
     @classmethod
     def from_documents(
         cls,
-        documents: Sequence[JSONDocument],
+        documents: Sequence[TDocument],
         text_fields: list[str],
         keyword_fields: list[str],
         db_path: str | Path,
         config: LexicalSearchConfig | None = None,
         recreate: bool = True,
-    ) -> "SQLiteLexicalSearchTool":
+    ) -> "SQLiteLexicalSearchTool[TDocument]":
         """Build a persisted lexical tool from raw documents."""
-        index = cast(
-            LexicalSearchIndex,
-            build_sqlite_text_index(
-                documents=documents,
-                text_fields=text_fields,
-                keyword_fields=keyword_fields,
-                db_path=db_path,
-                recreate=recreate,
-            ),
+        index = build_sqlite_text_index(
+            documents=documents,
+            text_fields=text_fields,
+            keyword_fields=keyword_fields,
+            db_path=db_path,
+            recreate=recreate,
         )
         return cls(index=index, config=config)
 
 
-class BaseSemanticSearchTool(SearchTool):
+class BaseSemanticSearchTool[TDocument: Document](SearchTool[TDocument]):
     """Base class for vector indexes that search with encoded queries."""
 
     def __init__(
@@ -177,7 +117,7 @@ class BaseSemanticSearchTool(SearchTool):
 
     @staticmethod
     def encode_documents(
-        documents: Sequence[JSONDocument],
+        documents: Sequence[Document],
         encoder: Encoder,
         text_fields: list[str],
         config: SemanticSearchConfig,
@@ -203,49 +143,50 @@ class BaseSemanticSearchTool(SearchTool):
         """Create one query vector with the same encoder as the index."""
         return np.asarray(self.encoder.encode(query))
 
-    def search(self, query: str) -> list[JSONDict]:
+    def search(self, query: str) -> list[TDocument]:
         """Search by vector similarity and optional filters."""
         results = self.index.search(
             self.encode_query(query),
             num_results=self.config.num_results,
             filter_dict=self.config.filter_dict,
         )
-        return cast(list[JSONDict], results)
+        return cast(list[TDocument], results)
 
 
-class MinsearchSemanticSearchTool(BaseSemanticSearchTool):
+class MinsearchSemanticSearchTool[TDocument: Document](
+    BaseSemanticSearchTool[TDocument]
+):
     """Semantic search backed by an in-memory minsearch vector index."""
 
     @classmethod
     def from_documents(
         cls,
-        documents: Sequence[JSONDocument],
+        documents: Sequence[TDocument],
         encoder: Encoder,
         text_fields: list[str],
         keyword_fields: list[str],
         config: SemanticSearchConfig | None = None,
-    ) -> "MinsearchSemanticSearchTool":
+    ) -> "MinsearchSemanticSearchTool[TDocument]":
         """Embed documents and build an in-memory semantic tool."""
         config = config or SemanticSearchConfig()
         vectors = cls.encode_documents(documents, encoder, text_fields, config)
-        index = cast(
-            SemanticSearchIndex,
-            build_minsearch_vector_index(
-                vectors=vectors,
-                documents=documents,
-                keyword_fields=keyword_fields,
-            ),
+        index = build_minsearch_vector_index(
+            vectors=vectors,
+            documents=documents,
+            keyword_fields=keyword_fields,
         )
         return cls(index=index, encoder=encoder, config=config)
 
 
-class SQLiteSemanticSearchTool(BaseSemanticSearchTool):
+class SQLiteSemanticSearchTool[TDocument: Document](
+    BaseSemanticSearchTool[TDocument]
+):
     """Semantic search backed by a persisted SQLite vector index."""
 
     @classmethod
     def from_documents(
         cls,
-        documents: Sequence[JSONDocument],
+        documents: Sequence[TDocument],
         encoder: Encoder,
         text_fields: list[str],
         keyword_fields: list[str],
@@ -253,19 +194,71 @@ class SQLiteSemanticSearchTool(BaseSemanticSearchTool):
         config: SemanticSearchConfig | None = None,
         vector_mode: str = "ivf",
         recreate: bool = True,
-    ) -> "SQLiteSemanticSearchTool":
+    ) -> "SQLiteSemanticSearchTool[TDocument]":
         """Embed documents and build a persisted semantic tool."""
         config = config or SemanticSearchConfig()
         vectors = cls.encode_documents(documents, encoder, text_fields, config)
-        index = cast(
-            SemanticSearchIndex,
-            build_sqlite_vector_index(
-                vectors=vectors,
-                documents=documents,
-                keyword_fields=keyword_fields,
-                db_path=db_path,
-                mode=vector_mode,
-                recreate=recreate,
-            ),
+        index = build_sqlite_vector_index(
+            vectors=vectors,
+            documents=documents,
+            keyword_fields=keyword_fields,
+            db_path=db_path,
+            mode=vector_mode,
+            recreate=recreate,
         )
         return cls(index=index, encoder=encoder, config=config)
+
+
+def reciprocal_rank_fusion[TDocument: Document](
+    results_lists: Iterable[Iterable[TDocument]],
+    key_fields: Sequence[str],
+    k: int = 60,
+    num_results: int = 5,
+) -> list[TDocument]:
+    """Fuse ranked result lists by summing reciprocal ranks per key_fields identity.
+
+    key_fields identifies "the same" document across lists so their ranks can
+    be combined; full-object equality isn't safe for this since different
+    SearchTool backends may return the same document with extra bookkeeping
+    fields or different value representations attached.
+    """
+    scores: dict[Hashable, float] = dict()
+    docs: dict[Hashable, TDocument] = dict()
+
+    for results in results_lists:
+        for rank, doc in enumerate(results):
+            doc_key = tuple(doc[field] for field in key_fields)
+            scores[doc_key] = scores.get(doc_key, 0) + 1 / (k + rank)
+            docs[doc_key] = doc
+
+    ranked = sorted(scores, key=lambda doc_key: scores[doc_key], reverse=True)
+    return [docs[doc_key] for doc_key in ranked[:num_results]]
+
+
+class HybridSearchTool[TDocument: Document](SearchTool[TDocument]):
+    """Combine two search tools with reciprocal rank fusion."""
+
+    def __init__(
+        self,
+        lexical_search_tool: SearchTool[TDocument],
+        semantic_search_tool: SearchTool[TDocument],
+        key_fields: Sequence[str],
+        k: int = 60,
+        num_results: int = 5,
+    ) -> None:
+        self.lexical_search_tool = lexical_search_tool
+        self.semantic_search_tool = semantic_search_tool
+        self.key_fields = key_fields
+        self.k = k
+        self.num_results = num_results
+
+    def search(self, query: str) -> list[TDocument]:
+        """Run lexical and semantic retrieval, then fuse both rankings."""
+        lexical_search_results = self.lexical_search_tool.search(query)
+        semantic_search_results = self.semantic_search_tool.search(query)
+        return reciprocal_rank_fusion(
+            [lexical_search_results, semantic_search_results],
+            key_fields=self.key_fields,
+            k=self.k,
+            num_results=self.num_results,
+        )

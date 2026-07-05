@@ -7,6 +7,7 @@ from typing import TypeVar
 from tqdm.auto import tqdm
 
 from lib.agentic_rag import AgentRunStats, AgenticRAG
+from lib.types import Document
 
 
 InputT = TypeVar("InputT")
@@ -25,7 +26,10 @@ class AgenticRAGAnswer:
     stats: AgentRunStats
 
 
-def answer_with_usage(rag: AgenticRAG, question: str) -> AgenticRAGAnswer:
+def answer_with_usage[TDocument: Document](
+    rag: AgenticRAG[TDocument],
+    question: str,
+) -> AgenticRAGAnswer:
     answer = rag.find_and_reply(question)
 
     return AgenticRAGAnswer(

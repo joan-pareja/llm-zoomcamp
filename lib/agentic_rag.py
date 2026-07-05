@@ -10,6 +10,7 @@ from openai.types.responses import ResponseInputParam, ToolParam
 
 from .llm import call_llm
 from .search import SearchTool
+from .types import Document
 
 
 ToolDefinition: TypeAlias = ToolParam
@@ -50,13 +51,13 @@ class AgentRunStats:
     tool_calls: int = 0
 
 
-class AgenticRAG:
+class AgenticRAG[TDocument: Document]:
     """Retrieval-augmented answer generator with simple and agentic modes."""
 
     def __init__(
             self,
             llm_client: OpenAI,
-            search_tool: SearchTool,
+            search_tool: SearchTool[TDocument],
             instructions: str,
             model: str = DEFAULT_OPENAI_MODEL,
             max_turns: int = 10,
