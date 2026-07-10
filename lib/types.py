@@ -14,7 +14,6 @@ from typing import Any, TypeAlias, TypedDict
 import numpy as np
 import numpy.typing as npt
 
-
 # Bound for document generics (search tools, AgenticRAG, ...). Concrete
 # documents are TypedDicts with concrete per-field types (str, int, ...), not
 # uniform-value-type mappings, so the bound only needs string-keyed, item

@@ -1,0 +1,20 @@
+{
+  "ruff.enable": true,
+  "ruff.configurationPreference": "filesystemFirst",
+  "ruff.nativeServer": "auto",
+  "ruff.importStrategy": "fromEnvironment",
+  "ruff.organizeImports": true,
+  "ruff.fixAll": true,
+  "ruff.lint.enable": true,
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+  "mypy-type-checker.ignorePatterns": [
+    "**"
+  ]
+}

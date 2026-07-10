@@ -1,2 +1,2 @@
-from .download import download
-from .embedder import Embedder
+from .download import download as download
+from .embedder import Embedder as Embedder

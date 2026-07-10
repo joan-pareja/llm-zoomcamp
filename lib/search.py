@@ -28,8 +28,7 @@ class SearchTool[TDocument: Document](ABC):
     """Abstract search interface consumed by AgenticRAG."""
 
     @abstractmethod
-    def search(self, query: str) -> list[TDocument]:
-        ...
+    def search(self, query: str) -> list[TDocument]: ...
 
 
 class BaseLexicalSearchTool[TDocument: Document](SearchTool[TDocument]):
@@ -54,9 +53,7 @@ class BaseLexicalSearchTool[TDocument: Document](SearchTool[TDocument]):
         return cast(list[TDocument], results)
 
 
-class MinsearchLexicalSearchTool[TDocument: Document](
-    BaseLexicalSearchTool[TDocument]
-):
+class MinsearchLexicalSearchTool[TDocument: Document](BaseLexicalSearchTool[TDocument]):
     """Lexical search backed by an in-memory minsearch text index."""
 
     @classmethod
@@ -76,9 +73,7 @@ class MinsearchLexicalSearchTool[TDocument: Document](
         return cls(index=index, config=config)
 
 
-class SQLiteLexicalSearchTool[TDocument: Document](
-    BaseLexicalSearchTool[TDocument]
-):
+class SQLiteLexicalSearchTool[TDocument: Document](BaseLexicalSearchTool[TDocument]):
     """Lexical search backed by a persisted SQLite text index."""
 
     @classmethod
@@ -130,7 +125,7 @@ class BaseSemanticSearchTool[TDocument: Document](SearchTool[TDocument]):
         vectors: list[EmbeddingVector] = []
 
         for i in tqdm(range(0, len(texts), config.batch_size)):
-            batch = texts[i:i + config.batch_size]
+            batch = texts[i : i + config.batch_size]
             vectors.append(np.asarray(encoder.encode(batch)))
 
         if vectors:
@@ -178,9 +173,7 @@ class MinsearchSemanticSearchTool[TDocument: Document](
         return cls(index=index, encoder=encoder, config=config)
 
 
-class SQLiteSemanticSearchTool[TDocument: Document](
-    BaseSemanticSearchTool[TDocument]
-):
+class SQLiteSemanticSearchTool[TDocument: Document](BaseSemanticSearchTool[TDocument]):
     """Semantic search backed by a persisted SQLite vector index."""
 
     @classmethod

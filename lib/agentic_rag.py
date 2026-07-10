@@ -12,7 +12,6 @@ from .llm import call_llm
 from .search import SearchTool
 from .types import Document
 
-
 ToolDefinition: TypeAlias = ToolParam
 Message: TypeAlias = dict[str, Any]
 MessageHistory: TypeAlias = list[Any]
@@ -30,14 +29,15 @@ SEARCH_TOOL_DEFINITION: ToolDefinition = {
         "properties": {
             "query": {
                 "type": "string",
-                "description": "Search query text to look up in the indexed documents."
+                "description": "Search query text to look up in the indexed documents.",
             }
         },
         "required": ["query"],
-        "additionalProperties": False
+        "additionalProperties": False,
     },
     "strict": True,
 }
+
 
 @dataclass
 class UsageCostConfig:
@@ -55,15 +55,15 @@ class AgenticRAG[TDocument: Document]:
     """Retrieval-augmented answer generator with simple and agentic modes."""
 
     def __init__(
-            self,
-            llm_client: OpenAI,
-            search_tool: SearchTool[TDocument],
-            instructions: str,
-            model: str = DEFAULT_OPENAI_MODEL,
-            max_turns: int = 10,
-            mode: RAGMode = "agentic",
-            usage_cost_config: UsageCostConfig | None = None,
-            ) -> None:
+        self,
+        llm_client: OpenAI,
+        search_tool: SearchTool[TDocument],
+        instructions: str,
+        model: str = DEFAULT_OPENAI_MODEL,
+        max_turns: int = 10,
+        mode: RAGMode = "agentic",
+        usage_cost_config: UsageCostConfig | None = None,
+    ) -> None:
         if mode not in ("agentic", "simple"):
             raise ValueError("mode must be either 'agentic' or 'simple'.")
 
@@ -117,9 +117,9 @@ class AgenticRAG[TDocument: Document]:
         }
 
     def _use_tools_until_done(
-            self,
-            message_history: MessageHistory,
-            ) -> tuple[str, MessageHistory, AgentRunStats]:
+        self,
+        message_history: MessageHistory,
+    ) -> tuple[str, MessageHistory, AgentRunStats]:
         run_stats = AgentRunStats()
 
         for _ in range(self.max_turns):
@@ -134,15 +134,13 @@ class AgenticRAG[TDocument: Document]:
             message_history = [*message_history, *response.output]
 
             function_calls = [
-                item for item in response.output
-                if item.type == "function_call"
+                item for item in response.output if item.type == "function_call"
             ]
 
             if function_calls:
                 run_stats.tool_calls += len(function_calls)
                 function_results = [
-                    self._search_and_serialize(call)
-                    for call in function_calls
+                    self._search_and_serialize(call) for call in function_calls
                 ]
                 message_history = [*message_history, *function_results]
                 continue
@@ -171,9 +169,7 @@ class AgenticRAG[TDocument: Document]:
             {
                 "role": "user",
                 "content": (
-                    f"Question: {question}\n\n"
-                    "Context:\n"
-                    f"{serialized_documents}"
+                    f"Question: {question}\n\nContext:\n{serialized_documents}"
                 ),
             },
         ]
@@ -195,9 +191,9 @@ class AgenticRAG[TDocument: Document]:
         raise RuntimeError("The LLM response did not include a final answer.")
 
     def _answer_agentically(
-            self,
-            question: str,
-            ) -> tuple[str, MessageHistory, AgentRunStats]:
+        self,
+        question: str,
+    ) -> tuple[str, MessageHistory, AgentRunStats]:
         message_history: MessageHistory = [
             {
                 "role": "system",

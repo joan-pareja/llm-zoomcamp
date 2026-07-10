@@ -1,10 +1,11 @@
-import numpy as np
-import onnxruntime as ort
 from pathlib import Path
 from typing import overload
 
-from lib.types import EmbeddingVector
+import numpy as np
+import onnxruntime as ort
 from tokenizers import Tokenizer
+
+from lib.types import EmbeddingVector
 
 
 class Embedder:
@@ -25,12 +26,10 @@ class Embedder:
         self.input_names = {inp.name for inp in self.session.get_inputs()}
 
     @overload
-    def encode(self, text: str, normalize: bool = True) -> EmbeddingVector:
-        ...
+    def encode(self, text: str, normalize: bool = True) -> EmbeddingVector: ...
 
     @overload
-    def encode(self, text: list[str], normalize: bool = True) -> EmbeddingVector:
-        ...
+    def encode(self, text: list[str], normalize: bool = True) -> EmbeddingVector: ...
 
     def encode(
         self,

@@ -1,7 +1,8 @@
+import logging
 import os
 import shutil
-import logging
 from pathlib import Path
+
 from huggingface_hub import hf_hub_download, list_repo_files
 
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
@@ -12,6 +13,7 @@ ONNX_CANDIDATES = [
     "onnx/encoder_model.onnx",
     "model.onnx",
 ]
+
 
 def download(repo, dest="models"):
     dest = Path(dest) / repo
@@ -43,6 +45,7 @@ def download(repo, dest="models"):
             print(f"  saved {dst}")
         else:
             print(f"  exists {dst}")
+
 
 if __name__ == "__main__":
     download("Xenova/all-MiniLM-L6-v2")

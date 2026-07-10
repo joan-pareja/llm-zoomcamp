@@ -7,8 +7,12 @@ from dataclasses import dataclass
 from typing import TypeVar
 
 from openai import OpenAI
-from openai.types.responses import Response, ResponseInputParam, ResponseUsage, ToolParam
-
+from openai.types.responses import (
+    Response,
+    ResponseInputParam,
+    ResponseUsage,
+    ToolParam,
+)
 
 DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-5.4-mini")
 
@@ -117,6 +121,6 @@ def call_structured_llm_with_retry(
         except Exception:
             if attempt == max_retries - 1:
                 raise
-            time.sleep(2 ** attempt)
+            time.sleep(2**attempt)
 
     raise RuntimeError("Structured LLM call failed without raising an exception.")

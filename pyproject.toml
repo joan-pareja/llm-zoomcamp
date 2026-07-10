@@ -37,6 +37,9 @@ include = ["lib*", "scripts*"]
 
 [tool.pyright]
 include = [
+    "04-evaluation/homework.ipynb",
+    "02-vector-search/homework.ipynb",
+    "01-agentic-rag/homework.ipynb",
     "04-evaluation/evaluation_utils.py",
     "lib/agentic_rag.py",
     "lib/index_storage.py",
@@ -50,6 +53,19 @@ pythonVersion = "3.12"
 venvPath = "."
 venv = ".venv"
 typeCheckingMode = "strict"
+reportMissingTypeStubs = "none"
+# Notebook cells intentionally use bare expressions for display output.
+reportUnusedExpression = "none"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+extend-exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+# E4/E7/E9: high-signal pycodestyle errors; F: Pyflakes correctness checks;
+# I: import sorting. Keep this small so Ruff handles hygiene without becoming noisy.
+select = ["E4", "E7", "E9", "F", "I"]
 
 [dependency-groups]
 dev = [
@@ -57,4 +73,5 @@ dev = [
     "jupyter>=1.1.1",
     "pandas-stubs>=3.0.3.260530",
     "pyright>=1.1.411",
+    "ruff>=0.15.20",
 ]

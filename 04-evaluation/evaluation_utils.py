@@ -6,9 +6,8 @@ from typing import TypeVar
 
 from tqdm.auto import tqdm
 
-from lib.agentic_rag import AgentRunStats, AgenticRAG
+from lib.agentic_rag import AgenticRAG, AgentRunStats
 from lib.types import Document
-
 
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")

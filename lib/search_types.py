@@ -16,7 +16,6 @@ from typing import Any, Protocol, TypeAlias, overload
 
 from .types import EmbeddingVector
 
-
 EmbeddingInput: TypeAlias = str | list[str]
 IndexDocument: TypeAlias = dict[str, Any]
 
@@ -25,15 +24,12 @@ class Encoder(Protocol):
     """Embedding interface used to create semantic index and query vectors."""
 
     @overload
-    def encode(self, text: str) -> EmbeddingVector:
-        ...
+    def encode(self, text: str) -> EmbeddingVector: ...
 
     @overload
-    def encode(self, text: list[str]) -> EmbeddingVector:
-        ...
+    def encode(self, text: list[str]) -> EmbeddingVector: ...
 
-    def encode(self, text: EmbeddingInput) -> EmbeddingVector:
-        ...
+    def encode(self, text: EmbeddingInput) -> EmbeddingVector: ...
 
 
 class LexicalSearchIndex(Protocol):
@@ -45,8 +41,7 @@ class LexicalSearchIndex(Protocol):
         filter_dict: dict[str, Any] | None = None,
         boost_dict: dict[str, float] | None = None,
         num_results: int = 10,
-    ) -> list[IndexDocument]:
-        ...
+    ) -> list[IndexDocument]: ...
 
 
 class SemanticSearchIndex(Protocol):
@@ -57,8 +52,7 @@ class SemanticSearchIndex(Protocol):
         query_vector: EmbeddingVector,
         filter_dict: dict[str, Any] | None = None,
         num_results: int = 10,
-    ) -> list[IndexDocument]:
-        ...
+    ) -> list[IndexDocument]: ...
 
 
 @dataclass

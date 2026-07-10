@@ -1,36 +1,34 @@
 import os
 
-
 DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-5.4-mini")
 
 
-INSTRUCTIONS = '''
+INSTRUCTIONS = """
 Your task is to answer questions from the course participants
 based on the provided context.
 
 Use the context to find relevant information and provide accurate
 answers. If the answer is not found in the context,
 respond with "I don't know."
-'''
+"""
 
-PROMPT_TEMPLATE = '''
+PROMPT_TEMPLATE = """
 QUESTION: {question}
 
 CONTEXT:
 {context}
-'''.strip()
+""".strip()
 
 
 class RAGBase:
-
     def __init__(
         self,
         index,
         llm_client,
         instructions=INSTRUCTIONS,
         prompt_template=PROMPT_TEMPLATE,
-        course='llm-zoomcamp',
-        model=DEFAULT_OPENAI_MODEL
+        course="llm-zoomcamp",
+        model=DEFAULT_OPENAI_MODEL,
     ):
         self.index = index
         self.llm_client = llm_client
@@ -40,7 +38,7 @@ class RAGBase:
         self.model = model
 
     def search(self, query, num_results=5):
-        boost_dict = {'filename': 2.0, 'content': 1.0}
+        boost_dict = {"filename": 2.0, "content": 1.0}
         # filter_dict = {'course': self.course}
 
         return self.index.search(
@@ -54,27 +52,24 @@ class RAGBase:
         lines = []
 
         for doc in search_results:
-            lines.append("File: " + doc['filename'])
-            lines.append("Content: " + doc['content'])
-            lines.append('')
+            lines.append("File: " + doc["filename"])
+            lines.append("Content: " + doc["content"])
+            lines.append("")
 
-        return '\n'.join(lines).strip()
+        return "\n".join(lines).strip()
 
     def build_prompt(self, query, search_results):
         context = self.build_context(search_results)
-        return self.prompt_template.format(
-            question=query, context=context
-        )
+        return self.prompt_template.format(question=query, context=context)
 
     def llm(self, prompt):
         input_messages = [
-            {'role': 'developer', 'content': self.instructions},
-            {'role': 'user', 'content': prompt}
+            {"role": "developer", "content": self.instructions},
+            {"role": "user", "content": prompt},
         ]
 
         response = self.llm_client.responses.create(
-            model=self.model,
-            input=input_messages
+            model=self.model, input=input_messages
         )
 
         print(response.usage)
