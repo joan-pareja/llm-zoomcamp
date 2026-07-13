@@ -1,0 +1,7 @@
+interface:
+  display_name: "Implement Approved Plan"
+  short_description: "Delegate a settled plan to a low-cost executor"
+  default_prompt: "Use $implement-approved-plan to implement the latest approved plan."
+
+policy:
+  allow_implicit_invocation: false
