@@ -1,0 +1,22 @@
+name: llm_zoomcamp_monitoring
+
+volumes:
+  rag_monitoring_postgres_data:
+    driver: local
+
+services:
+  monitoring_postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: ${MONITORING_POSTGRES_DB}
+      POSTGRES_USER: ${MONITORING_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${MONITORING_POSTGRES_PASSWORD}
+    volumes:
+      - rag_monitoring_postgres_data:/var/lib/postgresql
+    ports:
+      - "${MONITORING_POSTGRES_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10

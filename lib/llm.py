@@ -1,126 +1,133 @@
-"""Reusable LLM call and usage-cost helpers."""
+"""Reusable, instrumented LLM calls."""
 
 import os
-import time
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TypeVar
+from time import perf_counter
+from typing import TypeAlias, cast
 
 from openai import OpenAI
 from openai.types.responses import (
     Response,
+    ResponseInputItemParam,
     ResponseInputParam,
-    ResponseUsage,
+    ResponseOutputItem,
     ToolParam,
 )
 
-DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-5.4-mini")
+from .metrics import (
+    ModelCallMetrics,
+    calculate_price,
+    validate_model_pricing,
+)
 
-StructuredOutputT = TypeVar("StructuredOutputT")
-
-
-@dataclass
-class UsagePrice:
-    input_cost: float
-    output_cost: float
-    total_cost: float
+DEFAULT_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-5.4-mini")
+ModelInput: TypeAlias = list[ResponseInputItemParam | ResponseOutputItem]
 
 
-def calc_price(usage: ResponseUsage) -> UsagePrice:
-    input_price_per_million = 0.75
-    output_price_per_million = 4.50
+@dataclass(frozen=True)
+class ModelCall[ResultT]:
+    result: ResultT
+    metrics: ModelCallMetrics
 
-    input_cost = (usage.input_tokens / 1_000_000) * input_price_per_million
-    output_cost = (usage.output_tokens / 1_000_000) * output_price_per_million
-    total_cost = input_cost + output_cost
 
-    return UsagePrice(
-        input_cost=input_cost,
-        output_cost=output_cost,
-        total_cost=total_cost,
+class StructuredOutputError(RuntimeError):
+    """A billed structured response that could not be parsed."""
+
+    def __init__(self, message: str, metrics: ModelCallMetrics) -> None:
+        super().__init__(message)
+        self.metrics = metrics
+
+
+def _as_response_input(messages: ModelInput) -> ResponseInputParam:
+    """Present a supported mixed conversation as the SDK's narrower input type.
+
+    The Responses API accepts previous ``response.output`` items in subsequent
+    input. ``ModelInput`` models that runtime contract, while the generated SDK
+    annotation only describes parameter-shaped input items. Keep the necessary
+    cast at this boundary so callers retain the honest, stricter shared type.
+    This function changes only the static type; it does not transform the list.
+    """
+    return cast(ResponseInputParam, messages)
+
+
+def _build_call_metrics(
+    response: Response,
+    duration_seconds: float,
+    pricing_model: str,
+) -> ModelCallMetrics:
+    usage = response.usage
+    if usage is None:
+        raise RuntimeError("The LLM response did not include usage metadata.")
+
+    return ModelCallMetrics(
+        model=response.model,
+        input_tokens=usage.input_tokens,
+        cached_input_tokens=usage.input_tokens_details.cached_tokens,
+        output_tokens=usage.output_tokens,
+        reasoning_output_tokens=usage.output_tokens_details.reasoning_tokens,
+        duration_seconds=duration_seconds,
+        price=calculate_price(pricing_model, usage),
     )
-
-
-def calc_total_price(usages: Iterable[ResponseUsage | None]) -> float:
-    total_cost = 0.0
-
-    for usage in usages:
-        if usage is None:
-            continue
-
-        cost = calc_price(usage)
-        total_cost = total_cost + cost.total_cost
-
-    return total_cost
 
 
 def call_llm(
     client: OpenAI,
-    messages: ResponseInputParam,
-    model: str = DEFAULT_OPENAI_MODEL,
+    messages: ModelInput,
+    model: str = DEFAULT_MODEL,
     tools: Iterable[ToolParam] | None = None,
-) -> Response:
-    if tools is None:
-        return client.responses.create(
-            model=model,
-            input=messages,
-        )
+) -> ModelCall[Response]:
+    validate_model_pricing(model)
+    started_at = perf_counter()
 
-    else:
-        return client.responses.create(
+    if tools is None:
+        response = client.responses.create(
             model=model,
-            input=messages,
+            input=_as_response_input(messages),
+        )
+    else:
+        response = client.responses.create(
+            model=model,
+            input=_as_response_input(messages),
             tools=tools,
         )
 
+    duration_seconds = perf_counter() - started_at
+    return ModelCall(
+        result=response,
+        metrics=_build_call_metrics(response, duration_seconds, model),
+    )
 
-def call_structured_llm(
+
+def call_structured_llm[StructuredOutputT](
     client: OpenAI,
     instructions: str,
     user_prompt: str,
     output_type: type[StructuredOutputT],
-    model: str = DEFAULT_OPENAI_MODEL,
-) -> tuple[StructuredOutputT, ResponseUsage]:
-    messages: ResponseInputParam = [
+    model: str = DEFAULT_MODEL,
+) -> ModelCall[StructuredOutputT]:
+    validate_model_pricing(model)
+    messages: ModelInput = [
         {"role": "developer", "content": instructions},
         {"role": "user", "content": user_prompt},
     ]
 
+    started_at = perf_counter()
     response = client.responses.parse(
         model=model,
-        input=messages,
+        input=_as_response_input(messages),
         text_format=output_type,
     )
+    duration_seconds = perf_counter() - started_at
+    metrics = _build_call_metrics(cast(Response, response), duration_seconds, model)
 
     if response.output_parsed is None:
-        raise RuntimeError("The LLM response did not include parsed output.")
+        raise StructuredOutputError(
+            "The LLM response did not include parsed output.",
+            metrics,
+        )
 
-    if response.usage is None:
-        raise RuntimeError("The LLM response did not include usage metadata.")
-
-    return response.output_parsed, response.usage
-
-
-def call_structured_llm_with_retry(
-    client: OpenAI,
-    instructions: str,
-    user_prompt: str,
-    output_type: type[StructuredOutputT],
-    model: str = DEFAULT_OPENAI_MODEL,
-    max_retries: int = 3,
-) -> tuple[StructuredOutputT, ResponseUsage]:
-    for attempt in range(max_retries):
-        try:
-            return call_structured_llm(
-                client,
-                instructions,
-                user_prompt,
-                output_type,
-                model=model,
-            )
-        except Exception:
-            if attempt == max_retries - 1:
-                raise
-            time.sleep(2**attempt)
-
-    raise RuntimeError("Structured LLM call failed without raising an exception.")
+    return ModelCall(
+        result=response.output_parsed,
+        metrics=metrics,
+    )

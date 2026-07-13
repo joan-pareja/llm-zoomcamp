@@ -1,7 +1,10 @@
-import os
+from typing import Any, TypeAlias, cast
 
-DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-5.4-mini")
+from openai import OpenAI
 
+from lib.llm import DEFAULT_MODEL, call_llm
+
+SearchResult: TypeAlias = dict[str, str]
 
 INSTRUCTIONS = """
 Your task is to answer questions from the course participants
@@ -23,13 +26,13 @@ CONTEXT:
 class RAGBase:
     def __init__(
         self,
-        index,
-        llm_client,
-        instructions=INSTRUCTIONS,
-        prompt_template=PROMPT_TEMPLATE,
-        course="llm-zoomcamp",
-        model=DEFAULT_OPENAI_MODEL,
-    ):
+        index: Any,
+        llm_client: OpenAI,
+        instructions: str = INSTRUCTIONS,
+        prompt_template: str = PROMPT_TEMPLATE,
+        course: str = "llm-zoomcamp",
+        model: str = DEFAULT_MODEL,
+    ) -> None:
         self.index = index
         self.llm_client = llm_client
         self.instructions = instructions
@@ -37,19 +40,22 @@ class RAGBase:
         self.prompt_template = prompt_template
         self.model = model
 
-    def search(self, query, num_results=5):
+    def search(self, query: str, num_results: int = 5) -> list[SearchResult]:
         boost_dict = {"question": 3.0, "section": 0.5}
         filter_dict = {"course": self.course}
 
-        return self.index.search(
-            query,
-            num_results=num_results,
-            boost_dict=boost_dict,
-            filter_dict=filter_dict,
+        return cast(
+            list[SearchResult],
+            self.index.search(
+                query,
+                num_results=num_results,
+                boost_dict=boost_dict,
+                filter_dict=filter_dict,
+            ),
         )
 
-    def build_context(self, search_results):
-        lines = []
+    def build_context(self, search_results: list[SearchResult]) -> str:
+        lines: list[str] = []
 
         for doc in search_results:
             lines.append(doc["section"])
@@ -59,39 +65,36 @@ class RAGBase:
 
         return "\n".join(lines).strip()
 
-    def build_prompt(self, query, search_results):
+    def build_prompt(self, query: str, search_results: list[SearchResult]) -> str:
         context = self.build_context(search_results)
         return self.prompt_template.format(question=query, context=context)
 
-    def _calculate_cost(self, response):
-        input_price = 0.75 / 1_000_000
-        output_price = 4.50 / 1_000_000
-
-        cost = (
-            response.usage.input_tokens * input_price
-            + response.usage.output_tokens * output_price
-        )
-        return round(cost, 6)
-
-    def llm(self, instructions, user_prompt, model=None):
+    def llm(
+        self,
+        instructions: str,
+        user_prompt: str,
+        model: str | None = None,
+    ):
         model = model or self.model
 
-        message_history = [
+        message_history: list[Any] = [
             {"role": "developer", "content": instructions},
             {"role": "user", "content": user_prompt},
         ]
 
-        response = self.llm_client.responses.create(model=model, input=message_history)
+        return call_llm(
+            client=self.llm_client,
+            messages=message_history,
+            model=model,
+        )
 
-        return response
-
-    def rag(self, question):
+    def rag(self, question: str) -> str:
         search_results = self.search(question)
         user_prompt = self.build_prompt(question, search_results)
-        response = self.llm(INSTRUCTIONS, user_prompt)
+        call = self.llm(INSTRUCTIONS, user_prompt)
 
-        cost_in_dollars = self._calculate_cost(response)
-        answer = response.output_text
+        cost_in_dollars = call.metrics.price.total_cost_usd
+        answer = call.result.output_text
 
         return (
             f"The cost to answer this question is: ${cost_in_dollars}.\n\n"
@@ -99,5 +102,5 @@ class RAGBase:
             f"{answer}"
         )
 
-    def agentic_rag(self, question):
+    def agentic_rag(self, question: str) -> None:
         pass

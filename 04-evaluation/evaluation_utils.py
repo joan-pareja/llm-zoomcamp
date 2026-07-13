@@ -1,40 +1,43 @@
 from collections.abc import Callable, Sequence
 from concurrent.futures import Executor, Future
-from dataclasses import dataclass
 from time import sleep
 from typing import TypeVar
 
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    InternalServerError,
+    RateLimitError,
+)
 from tqdm.auto import tqdm
-
-from lib.agentic_rag import AgenticRAG, AgentRunStats
-from lib.types import Document
 
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")
 
 __all__ = [
-    "AgenticRAGAnswer",
-    "answer_with_usage",
+    "call_with_retry",
     "map_progress",
 ]
 
 
-@dataclass
-class AgenticRAGAnswer:
-    answer: str
-    stats: AgentRunStats
+def call_with_retry(
+    call: Callable[[], OutputT],
+    max_attempts: int = 3,
+) -> OutputT:
+    for attempt in range(max_attempts):
+        try:
+            return call()
+        except (
+            APIConnectionError,
+            APITimeoutError,
+            InternalServerError,
+            RateLimitError,
+        ):
+            if attempt == max_attempts - 1:
+                raise
+            sleep(2**attempt)
 
-
-def answer_with_usage[TDocument: Document](
-    rag: AgenticRAG[TDocument],
-    question: str,
-) -> AgenticRAGAnswer:
-    answer = rag.find_and_reply(question)
-
-    return AgenticRAGAnswer(
-        answer=answer,
-        stats=rag.last_run_stats,
-    )
+    raise RuntimeError("Retry loop finished without returning or raising.")
 
 
 def map_progress(

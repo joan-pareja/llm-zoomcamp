@@ -21,6 +21,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "requests>=2.34.2",
     "sqlitesearch>=0.1.0",
+    "streamlit>=1.59.1",
     "tokenizers>=0.22.2",
     "toolz>=1.1.0",
     "toyaikit>=0.0.11",
@@ -38,16 +39,29 @@ include = ["lib*", "scripts*"]
 [tool.pyright]
 include = [
     "04-evaluation/homework.ipynb",
+    "04-evaluation/notebook.ipynb",
     "02-vector-search/homework.ipynb",
     "01-agentic-rag/homework.ipynb",
+    "01-agentic-rag/homework_rag_helper.py",
+    "01-agentic-rag/rag.py",
     "04-evaluation/evaluation_utils.py",
+    "lib/__init__.py",
     "lib/agentic_rag.py",
+    "lib/json_utils.py",
     "lib/index_storage.py",
     "lib/llm.py",
+    "lib/metrics.py",
+    "lib/monitoring_store.py",
     "lib/search.py",
     "lib/search_types.py",
     "lib/sources.py",
     "lib/types.py",
+    "05-monitor/assistant.py",
+    "05-monitor/app.py",
+    "05-monitor/dashboard.py",
+    "05-monitor/dashboard_rendering.py",
+    "05-monitor/initialize_monitoring_database.py",
+    "05-monitor/run_rendering.py",
 ]
 pythonVersion = "3.12"
 venvPath = "."
