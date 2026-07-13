@@ -4,7 +4,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Literal, TypeAlias, cast
+from typing import Literal, NamedTuple, TypeAlias, cast
 
 from openai import OpenAI
 from openai.types.responses import ResponseFunctionToolCall, ToolParam
@@ -41,6 +41,13 @@ class AgentRun:
     answer: str
     metrics: AgentRunMetrics
     message_history: ModelInput
+
+
+class _AnswerResult(NamedTuple):
+    answer: str
+    message_history: ModelInput
+    model_call_metrics: tuple[ModelCallMetrics, ...]
+    tool_calls_count: int
 
 
 class AgenticRAG[TDocument: Document]:
@@ -92,7 +99,7 @@ class AgenticRAG[TDocument: Document]:
     def _use_tools_until_done(
         self,
         message_history: ModelInput,
-    ) -> tuple[str, ModelInput, tuple[ModelCallMetrics, ...], int]:
+    ) -> _AnswerResult:
         model_call_metrics: list[ModelCallMetrics] = []
         tool_calls_count = 0
 
@@ -121,11 +128,11 @@ class AgenticRAG[TDocument: Document]:
                 continue
 
             if response.output_text:
-                return (
-                    response.output_text,
-                    message_history,
-                    tuple(model_call_metrics),
-                    tool_calls_count,
+                return _AnswerResult(
+                    answer=response.output_text,
+                    message_history=message_history,
+                    model_call_metrics=tuple(model_call_metrics),
+                    tool_calls_count=tool_calls_count,
                 )
 
             raise RuntimeError(
@@ -137,7 +144,7 @@ class AgenticRAG[TDocument: Document]:
     def _answer_with_single_search(
         self,
         question: str,
-    ) -> tuple[str, ModelInput, tuple[ModelCallMetrics, ...], int]:
+    ) -> _AnswerResult:
         documents = self.search_tool.search(question)
         serialized_documents = json.dumps(documents, indent=2)
         message_history: ModelInput = [
@@ -162,14 +169,19 @@ class AgenticRAG[TDocument: Document]:
         message_history = [*message_history, *response.output]
 
         if response.output_text:
-            return response.output_text, message_history, (model_call.metrics,), 1
+            return _AnswerResult(
+                answer=response.output_text,
+                message_history=message_history,
+                model_call_metrics=(model_call.metrics,),
+                tool_calls_count=1,
+            )
 
         raise RuntimeError("The LLM response did not include a final answer.")
 
     def _answer_agentically(
         self,
         question: str,
-    ) -> tuple[str, ModelInput, tuple[ModelCallMetrics, ...], int]:
+    ) -> _AnswerResult:
         message_history: ModelInput = [
             {
                 "role": "system",
