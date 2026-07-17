@@ -1,4 +1,4 @@
-"""Reusable, instrumented LLM calls."""
+"""Reusable, instrumented LLM calls using caller-configured OpenAI clients."""
 
 import os
 from collections.abc import Iterable
@@ -14,6 +14,7 @@ from openai.types.responses import (
     ResponseOutputItem,
     ToolParam,
 )
+from opentelemetry import trace
 
 from .metrics import (
     ModelCallMetrics,
@@ -23,6 +24,7 @@ from .metrics import (
 
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-5.4-mini")
 ModelInput: TypeAlias = list[ResponseInputItemParam | ResponseOutputItem]
+_tracer = trace.get_tracer("llm-zoomcamp.llm")
 
 
 @dataclass(frozen=True)
@@ -78,25 +80,31 @@ def call_llm(
     tools: Iterable[ToolParam] | None = None,
 ) -> ModelCall[Response]:
     validate_model_pricing(model)
-    started_at = perf_counter()
+    with _tracer.start_as_current_span("llm") as span:
+        started_at = perf_counter()
 
-    if tools is None:
-        response = client.responses.create(
-            model=model,
-            input=_as_response_input(messages),
-        )
-    else:
-        response = client.responses.create(
-            model=model,
-            input=_as_response_input(messages),
-            tools=tools,
-        )
+        if tools is None:
+            response = client.responses.create(
+                model=model,
+                input=_as_response_input(messages),
+            )
+        else:
+            response = client.responses.create(
+                model=model,
+                input=_as_response_input(messages),
+                tools=tools,
+            )
 
-    duration_seconds = perf_counter() - started_at
-    return ModelCall(
-        result=response,
-        metrics=_build_call_metrics(response, duration_seconds, model),
-    )
+        duration_seconds = perf_counter() - started_at
+        metrics = _build_call_metrics(response, duration_seconds, model)
+        span.set_attribute("input_tokens", metrics.input_tokens)
+        span.set_attribute("output_tokens", metrics.output_tokens)
+        span.set_attribute("cost", metrics.price.total_cost_usd)
+
+        return ModelCall(
+            result=response,
+            metrics=metrics,
+        )
 
 
 def call_structured_llm[StructuredOutputT](
@@ -111,8 +119,8 @@ def call_structured_llm[StructuredOutputT](
         {"role": "developer", "content": instructions},
         {"role": "user", "content": user_prompt},
     ]
-
     started_at = perf_counter()
+
     response = client.responses.parse(
         model=model,
         input=_as_response_input(messages),

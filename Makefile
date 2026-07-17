@@ -7,6 +7,9 @@ chat:
 dashboard:
 	uv run streamlit run ./05-monitor/dashboard.py --server.port 8502
 
+generate-data:
+	uv run python ./05-monitor/generate_synthetic_data.py
+
 monitor-db-up:
 	docker compose --env-file ./.env -f ./05-monitor/docker-compose.yml up -d
 

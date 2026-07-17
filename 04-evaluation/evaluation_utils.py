@@ -3,41 +3,14 @@ from concurrent.futures import Executor, Future
 from time import sleep
 from typing import TypeVar
 
-from openai import (
-    APIConnectionError,
-    APITimeoutError,
-    InternalServerError,
-    RateLimitError,
-)
 from tqdm.auto import tqdm
 
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")
 
 __all__ = [
-    "call_with_retry",
     "map_progress",
 ]
-
-
-def call_with_retry(
-    call: Callable[[], OutputT],
-    max_attempts: int = 3,
-) -> OutputT:
-    for attempt in range(max_attempts):
-        try:
-            return call()
-        except (
-            APIConnectionError,
-            APITimeoutError,
-            InternalServerError,
-            RateLimitError,
-        ):
-            if attempt == max_attempts - 1:
-                raise
-            sleep(2**attempt)
-
-    raise RuntimeError("Retry loop finished without returning or raising.")
 
 
 def map_progress(

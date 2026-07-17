@@ -9,6 +9,7 @@ from typing import Literal, NamedTuple, TypeAlias, cast
 from openai import OpenAI
 from openai.types.responses import ResponseFunctionToolCall, ToolParam
 from openai.types.responses.response_input_item_param import FunctionCallOutput
+from opentelemetry import trace
 
 from .llm import DEFAULT_MODEL, ModelInput, call_llm
 from .metrics import AgentRunMetrics, ModelCallMetrics
@@ -16,6 +17,7 @@ from .search import SearchTool
 from .types import Document
 
 RAGMode: TypeAlias = Literal["agentic", "simple"]
+_tracer = trace.get_tracer("llm-zoomcamp.agentic-rag")
 
 SEARCH_TOOL_DEFINITION: ToolParam = {
     "type": "function",
@@ -88,7 +90,8 @@ class AgenticRAG[TDocument: Document]:
         if not isinstance(query, str):
             raise ValueError("Search tool argument 'query' must be a string.")
 
-        result = self.search_tool.search(query)
+        with _tracer.start_as_current_span("search"):
+            result = self.search_tool.search(query)
 
         return {
             "type": "function_call_output",
@@ -145,7 +148,8 @@ class AgenticRAG[TDocument: Document]:
         self,
         question: str,
     ) -> _AnswerResult:
-        documents = self.search_tool.search(question)
+        with _tracer.start_as_current_span("search"):
+            documents = self.search_tool.search(question)
         serialized_documents = json.dumps(documents, indent=2)
         message_history: ModelInput = [
             {
@@ -196,23 +200,24 @@ class AgenticRAG[TDocument: Document]:
         return self._use_tools_until_done(message_history)
 
     def find_and_reply(self, question: str) -> AgentRun:
-        started_at = perf_counter()
+        with _tracer.start_as_current_span("rag"):
+            started_at = perf_counter()
 
-        if self.mode == "simple":
-            answer, message_history, model_call_metrics, tool_calls_count = (
-                self._answer_with_single_search(question)
-            )
-        else:
-            answer, message_history, model_call_metrics, tool_calls_count = (
-                self._answer_agentically(question)
-            )
+            if self.mode == "simple":
+                answer, message_history, model_call_metrics, tool_calls_count = (
+                    self._answer_with_single_search(question)
+                )
+            else:
+                answer, message_history, model_call_metrics, tool_calls_count = (
+                    self._answer_agentically(question)
+                )
 
-        return AgentRun(
-            answer=answer,
-            metrics=AgentRunMetrics(
-                model_call_metrics=model_call_metrics,
-                tool_calls_count=tool_calls_count,
-                duration_seconds=perf_counter() - started_at,
-            ),
-            message_history=message_history,
-        )
+            return AgentRun(
+                answer=answer,
+                metrics=AgentRunMetrics(
+                    model_call_metrics=model_call_metrics,
+                    tool_calls_count=tool_calls_count,
+                    duration_seconds=perf_counter() - started_at,
+                ),
+                message_history=message_history,
+            )

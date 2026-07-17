@@ -7,6 +7,7 @@ import streamlit as st
 from run_rendering import render_run_details, render_run_summary
 
 from lib.monitoring_store import (
+    FeedbackSummary,
     MonitoringSummary,
     StoredAgentRun,
     StoredAgentRunSummary,
@@ -61,6 +62,37 @@ def render_dashboard_summary(summary: MonitoringSummary) -> None:
     average_cost.metric("Average cost per run", f"${average_cost_usd:.6f}")
 
     st.caption(f"Average token usage: {summary.average_total_tokens:,.0f} per run")
+
+
+def render_feedback_summary(summary: FeedbackSummary) -> None:
+    st.subheader("Feedback")
+    judge, user = st.columns(2)
+
+    with judge:
+        st.markdown("**Judge relevance**")
+        relevance_data = pd.DataFrame(
+            {
+                "relevance": ["Relevant", "Partly relevant", "Non-relevant"],
+                "count": [
+                    summary.relevant_count,
+                    summary.partly_relevant_count,
+                    summary.non_relevant_count,
+                ],
+            }
+        )
+        st.bar_chart(  # pyright: ignore[reportUnknownMemberType]
+            relevance_data,
+            x="relevance",
+            y="count",
+            x_label="Verdict",
+            y_label="Evaluations",
+        )
+
+    with user:
+        st.markdown("**User ratings**")
+        thumbs_up, thumbs_down = st.columns(2)
+        thumbs_up.metric("Thumbs up", summary.thumbs_up_count)
+        thumbs_down.metric("Thumbs down", summary.thumbs_down_count)
 
 
 def render_run_trends(runs: Sequence[StoredAgentRunSummary]) -> None:

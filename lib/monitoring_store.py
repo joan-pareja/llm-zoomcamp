@@ -56,6 +56,18 @@ CREATE TABLE IF NOT EXISTS model_call_metrics (
 );
 """
 
+_CREATE_FEEDBACK_SQL = """
+CREATE TABLE IF NOT EXISTS feedback (
+    feedback_id uuid PRIMARY KEY,
+    run_id uuid NOT NULL REFERENCES agent_runs (run_id) ON DELETE CASCADE,
+    source text NOT NULL,
+    relevance text,
+    explanation text,
+    score integer,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+"""
+
 _CREATE_AGENT_RUNS_CREATED_AT_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS agent_runs_created_at_idx
 ON agent_runs (created_at DESC);
@@ -84,6 +96,15 @@ class MonitoringSummary:
     average_duration_seconds: float
     total_cost_usd: float
     average_total_tokens: float
+
+
+@dataclass(frozen=True)
+class FeedbackSummary:
+    relevant_count: int
+    partly_relevant_count: int
+    non_relevant_count: int
+    thumbs_up_count: int
+    thumbs_down_count: int
 
 
 @dataclass(frozen=True)
@@ -194,6 +215,7 @@ class MonitoringStore:
         with self.connection.transaction():
             self.connection.execute(_CREATE_AGENT_RUNS_SQL)
             self.connection.execute(_CREATE_MODEL_CALL_METRICS_SQL)
+            self.connection.execute(_CREATE_FEEDBACK_SQL)
             self.connection.execute(_CREATE_AGENT_RUNS_CREATED_AT_INDEX_SQL)
 
     def list_recent_agent_runs(
@@ -254,6 +276,38 @@ class MonitoringStore:
                 ).fetchone()
         if row is None:
             raise RuntimeError("Monitoring summary query returned no row")
+
+        return row
+
+    def get_feedback_summary(self) -> FeedbackSummary:
+        with self.connection.transaction():
+            with self.connection.cursor(
+                row_factory=class_row(FeedbackSummary)
+            ) as cursor:
+                row = cursor.execute(
+                    """
+                    SELECT
+                        COUNT(*) FILTER (
+                            WHERE source = 'judge' AND relevance = 'RELEVANT'
+                        ) AS relevant_count,
+                        COUNT(*) FILTER (
+                            WHERE source = 'judge'
+                                AND relevance = 'PARTLY_RELEVANT'
+                        ) AS partly_relevant_count,
+                        COUNT(*) FILTER (
+                            WHERE source = 'judge' AND relevance = 'NON_RELEVANT'
+                        ) AS non_relevant_count,
+                        COUNT(*) FILTER (
+                            WHERE source = 'user' AND score > 0
+                        ) AS thumbs_up_count,
+                        COUNT(*) FILTER (
+                            WHERE source = 'user' AND score < 0
+                        ) AS thumbs_down_count
+                    FROM feedback
+                    """
+                ).fetchone()
+        if row is None:
+            raise RuntimeError("Feedback summary query returned no row")
 
         return row
 
@@ -445,3 +499,46 @@ class MonitoringStore:
                 )
 
         return run_id
+
+    def save_feedback(
+        self,
+        run_id: UUID,
+        source: str,
+        *,
+        relevance: str | None = None,
+        explanation: str | None = None,
+        score: int | None = None,
+    ) -> UUID:
+        feedback_id = uuid4()
+
+        with self.connection.transaction():
+            self.connection.execute(
+                """
+                INSERT INTO feedback (
+                    feedback_id,
+                    run_id,
+                    source,
+                    relevance,
+                    explanation,
+                    score
+                )
+                VALUES (
+                    %(feedback_id)s,
+                    %(run_id)s,
+                    %(source)s,
+                    %(relevance)s,
+                    %(explanation)s,
+                    %(score)s
+                )
+                """,
+                {
+                    "feedback_id": feedback_id,
+                    "run_id": run_id,
+                    "source": source,
+                    "relevance": relevance,
+                    "explanation": explanation,
+                    "score": score,
+                },
+            )
+
+        return feedback_id

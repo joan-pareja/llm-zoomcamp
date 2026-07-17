@@ -15,6 +15,8 @@ dependencies = [
     "numpy>=2.3.5",
     "onnxruntime>=1.27.0",
     "openai>=2.41.1",
+    "opentelemetry-api>=1.44.0",
+    "opentelemetry-sdk>=1.44.0",
     "pandas>=3.0.3",
     "psycopg[binary]>=3.3.4",
     "pydash>=8.0.6",
@@ -60,7 +62,10 @@ include = [
     "05-monitor/app.py",
     "05-monitor/dashboard.py",
     "05-monitor/dashboard_rendering.py",
+    "05-monitor/generate_synthetic_data.py",
+    "05-monitor/homework.ipynb",
     "05-monitor/initialize_monitoring_database.py",
+    "05-monitor/judge.py",
     "05-monitor/run_rendering.py",
 ]
 pythonVersion = "3.12"

@@ -1,6 +1,7 @@
 import streamlit as st
 from dashboard_rendering import (
     render_dashboard_summary,
+    render_feedback_summary,
     render_recent_runs,
     render_run_trends,
     render_stored_run,
@@ -19,17 +20,19 @@ def get_monitoring_store() -> MonitoringStore:
 
 st.set_page_config(page_title="RAG Monitoring", layout="wide")
 st.title("Course Assistant Monitoring")
-st.caption("Usage, cost, latency, and the complete history of each agent run.")
+st.caption("Usage, cost, latency, feedback, and the history of each agent run.")
 
 try:
     store = get_monitoring_store()
     summary = store.get_monitoring_summary()
+    feedback_summary = store.get_feedback_summary()
     recent_runs = store.list_recent_agent_runs(limit=100)
 except Exception as exc:  # noqa: BLE001
     st.error(f"Could not load monitoring data from Postgres: {exc}")
     st.stop()
 
 render_dashboard_summary(summary)
+render_feedback_summary(feedback_summary)
 
 if not recent_runs:
     st.info("No agent runs have been stored yet. Ask a question in the chat first.")
