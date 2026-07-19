@@ -67,6 +67,9 @@ include = [
     "05-monitor/initialize_monitoring_database.py",
     "05-monitor/judge.py",
     "05-monitor/run_rendering.py",
+    "workshops/dlt/filesystem_pipeline.py",
+    "workshops/dlt/rest_api_pipeline.py",
+    "workshops/dlt/dashboards",
 ]
 pythonVersion = "3.12"
 venvPath = "."
@@ -75,6 +78,31 @@ typeCheckingMode = "strict"
 reportMissingTypeStubs = "none"
 # Notebook cells intentionally use bare expressions for display output.
 reportUnusedExpression = "none"
+
+[[tool.pyright.executionEnvironments]]
+# marimo cell parameters are intentionally unannotated (reactive dependency
+# injection is how marimo wires cells together), and dlt's dataset(sql).df()
+# is inherently Any. Both are unfixable at this file without fighting the
+# tools that generate and run it, so the "Unknown" cascade rules are scoped
+# off for every marimo dashboard here rather than for the whole project.
+# New dashboards land in this directory automatically — no edit needed here.
+# extraPaths override: dlt/marimo/altair etc. live only in workshops/dlt's
+# own venv (scoped there — see workshops/dlt/pyproject.toml), not the root
+# one, so import resolution needs this site-packages dir added explicitly.
+root = "workshops/dlt/dashboards"
+extraPaths = ["workshops/dlt/.venv/Lib/site-packages"]
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownParameterType = "none"
+reportUnknownArgumentType = "none"
+reportMissingParameterType = "none"
+
+[[tool.pyright.executionEnvironments]]
+# Same extraPaths override as above, for the dlt pipeline scripts (no
+# Unknown-rule suppression needed here — these should type-check clean
+# under full strict mode once import resolution works).
+root = "workshops/dlt"
+extraPaths = ["workshops/dlt/.venv/Lib/site-packages"]
 
 [tool.ruff]
 target-version = "py312"
