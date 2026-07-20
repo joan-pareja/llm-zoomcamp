@@ -69,6 +69,7 @@ include = [
     "05-monitor/run_rendering.py",
     "workshops/dlt/filesystem_pipeline.py",
     "workshops/dlt/rest_api_pipeline.py",
+    "workshops/dlt/homework.py",
     "workshops/dlt/dashboards",
 ]
 pythonVersion = "3.12"
@@ -91,6 +92,18 @@ reportUnusedExpression = "none"
 # one, so import resolution needs this site-packages dir added explicitly.
 root = "workshops/dlt/dashboards"
 extraPaths = ["workshops/dlt/.venv/Lib/site-packages"]
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownParameterType = "none"
+reportUnknownArgumentType = "none"
+reportMissingParameterType = "none"
+
+[[tool.pyright.executionEnvironments]]
+# Marimo homework notebook: same unannotated-cell / dlt-Any cascade as the
+# dashboards block, but it lives at the workshop root next to the strict
+# pipeline scripts, so it needs its own file-scoped environment.
+root = "workshops/dlt/homework.py"
+extraPaths = [".", "workshops/dlt", "workshops/dlt/.venv/Lib/site-packages"]
 reportUnknownMemberType = "none"
 reportUnknownVariableType = "none"
 reportUnknownParameterType = "none"

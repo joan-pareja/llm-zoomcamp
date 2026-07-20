@@ -1,7 +1,7 @@
 [project]
 name = "dlt-workshop"
 version = "0.1.0"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "altair>=6.2.2",
     "dlt[deltalake,duckdb,filesystem,hub]==1.29.0",
@@ -9,7 +9,12 @@ dependencies = [
     "dlthub-client>=0.28.1",
     "fastmcp>=3.4.4",
     "ibis-framework>=12.0.0",
+    "importlib-metadata>=9.0.0",
+    "logfire>=4",
     "marimo>=0.23.14",
+    "openai>=2.46.0",
     "pandas>=3.0.3",
     "pyarrow>=25.0.0",
+    "pydantic-ai-slim[openai]>=2.13.0",
+    "sqlitesearch>=0.3.0",
 ]
